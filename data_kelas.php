@@ -1,0 +1,207 @@
+<?php
+include "koneksi.php";
+include "session.php";
+
+
+$id_kelas = $_GET['id_kelas'];
+$query_nama = mysqli_query($conn,"SELECT * from kelas where id_kelas = '$id_kelas'");
+$row_nama = mysqli_fetch_array($query_nama);
+
+$query_periode = mysqli_query($conn, "SELECT * from tahun_ajaran where status_aktif = '1'");
+$row_periode = mysqli_fetch_array($query_periode);
+
+$periode_awal = $row_periode['tanggal_awal'];
+$periode_akhir = $row_periode['tanggal_akhir'];
+// Query untuk mengambil data siswa berdasarkan id_kelas
+
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: #343a40;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+        }
+
+        .sidebar a {
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 20px;
+            display: block;
+        }
+
+        .sidebar a:hover {
+            background-color: #495057;
+            border-radius: 5px;
+        }
+
+        .content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .navbar {
+            background-color: #f8f9fa;
+        }
+
+        .card {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border: none;
+            border-radius: 10px;
+        }
+
+        .card h5 {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <?php include "navbar.php"; ?>
+
+    <div class="content">
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">siswa dan kelas</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">Profile</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">Notifications</a>
+                        </li>
+                        
+                        
+
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container mt-4">
+            <div class="container mt-4 ">
+                <h2 class="mb-4">Daftar Siswa Kelas <?php echo $row_nama['kelas']; ?></h2>
+                <table class="table table-bordered">
+                    <div class="mt-3 mb-3 ">
+                        <a href="form_naik_kelas.php?id_kelas=<?php echo htmlspecialchars($id_kelas); ?>" class="btn btn-success">Naik Kelas</a>                    
+                        <a href="data_naik_kelas.php?id_kelas=<?php echo htmlspecialchars($id_kelas); ?>" class="btn btn-warning">data siswa naik kelas</a>
+                        <a href="export_rekap.php?id_kelas=<?php echo htmlspecialchars($id_kelas); ?>" class="btn btn-primary">Download Rekap Kelas</a>
+                    </div>
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID Siswa</th>
+                            <th>Nama</th>
+                            <th>Hadir</th>
+                            <th>Sakit</th>
+                            <th>Izin</th>
+                            <th>Alfa</th>
+                            <th>Terlambat</th>
+                            <th>Hari Aktif</th>
+                            <th>% Hadir</th>
+                            <th>% Sakit</th>
+                            <th>% Izin</th>
+                            <th>% Alfa</th>
+                            <th>% Terlambat</th>
+                        </tr>
+                    </thead>
+                    <?php
+                    // Pastikan parameter tidak kosong
+                    if ($id_kelas && $periode_awal && $periode_akhir) {
+                        $sql = "SELECT 
+                        s.id_siswa,
+                        s.nama AS nama_siswa,
+                        COUNT(CASE WHEN p.status_masuk = 'Hadir' THEN 1 END) AS total_hadir,
+                        COUNT(CASE WHEN p.status_masuk = 'Sakit' THEN 1 END) AS total_sakit,
+                        COUNT(CASE WHEN p.status_masuk = 'Izin' THEN 1 END) AS total_izin,
+                        COUNT(CASE WHEN p.status_masuk = 'Alfa' THEN 1 END) AS total_alfa,
+                        COUNT(CASE WHEN p.status_masuk = 'Hadir' AND TIME(p.waktu) > '07:10:00' THEN 1 END) AS total_terlambat,
+                        COUNT(p.tanggal) AS total_hari_aktif,
+                        ROUND(COUNT(CASE WHEN p.status_masuk = 'Hadir' THEN 1 END) / NULLIF(COUNT(p.tanggal), 0) * 100, 2) AS persen_hadir,
+                        ROUND(COUNT(CASE WHEN p.status_masuk = 'Sakit' THEN 1 END) / NULLIF(COUNT(p.tanggal), 0) * 100, 2) AS persen_sakit,
+                        ROUND(COUNT(CASE WHEN p.status_masuk = 'Izin' THEN 1 END) / NULLIF(COUNT(p.tanggal), 0) * 100, 2) AS persen_izin,
+                        ROUND(COUNT(CASE WHEN p.status_masuk = 'Alfa' THEN 1 END) / NULLIF(COUNT(p.tanggal), 0) * 100, 2) AS persen_alfa,
+                        ROUND(COUNT(CASE WHEN p.status_masuk = 'Hadir' AND TIME(p.waktu) > '07:10:00' THEN 1 END) / NULLIF(COUNT(p.tanggal), 0) * 100, 2) AS persen_terlambat
+                    FROM 
+                        siswa s
+                    LEFT JOIN 
+                        kelas_siswa ks ON s.id_siswa = ks.id_siswa
+                    LEFT JOIN 
+                        presensi p ON ks.id_pergantian_kelas = p.id_pergantian_kelas 
+                        AND p.tanggal BETWEEN '$periode_awal' AND '$periode_akhir'
+                        AND p.status_hapus = 0
+                    WHERE 
+                        ks.id_kelas = '$id_kelas'
+                    GROUP BY 
+                        s.id_siswa, s.nama
+                    ORDER BY 
+                        persen_hadir DESC;
+
+                        ";
+
+                        $result = $conn->query($sql);
+                    ?>
+                        <tbody>
+                            <?php while ($row = $result->fetch_assoc()) { ?>
+                                <?php
+                                echo "<tr>
+                                 <td>{$row['id_siswa']}</td>
+                                 <td>{$row['nama_siswa']}</td>
+                                 <td>{$row['total_hadir']}</td>
+                                 <td>{$row['total_sakit']}</td>
+                                 <td>{$row['total_izin']}</td>
+                                 <td>{$row['total_alfa']}</td>
+                                 <td>{$row['total_terlambat']}</td>
+                                 <td>{$row['total_hari_aktif']}</td>
+                                 <td>{$row['persen_hadir']}%</td>
+                                 <td>{$row['persen_sakit']}%</td>
+                                 <td>{$row['persen_izin']}%</td>
+                                 <td>{$row['persen_alfa']}%</td>
+                                 <td>{$row['persen_terlambat']}%</td>
+                               </tr>";
+                                ?>
+                        <?php
+
+                            }
+                        } else {
+                            echo "Silakan masukkan parameter id_kelas, periode_awal, dan periode_akhir.";
+                        }
+
+                        ?>
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Bootstrap JS -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- Chart.js -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</body>
+
+</html>
